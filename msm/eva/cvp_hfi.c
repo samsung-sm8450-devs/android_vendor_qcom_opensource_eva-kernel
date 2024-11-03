@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <asm/memory.h>
@@ -1778,8 +1777,6 @@ static void cvp_pm_qos_update(struct iris_hfi_device *device, bool vote_on)
 
 	if (device->res->pm_qos.latency_us && device->res->pm_qos.pm_qos_hdls)
 		for (i = 0; i < device->res->pm_qos.silver_count; i++) {
-			if (!cpu_possible(device->res->pm_qos.silver_cores[i]))
-				continue;
 			err = dev_pm_qos_update_request(
 				&device->res->pm_qos.pm_qos_hdls[i],
 				latency);
@@ -1933,8 +1930,6 @@ static int iris_hfi_core_init(void *device)
 
 		for (i = 0; i < dev->res->pm_qos.silver_count; i++) {
 			cpu = dev->res->pm_qos.silver_cores[i];
-			if (!cpu_possible(cpu))
-				continue;
 			err = dev_pm_qos_add_request(
 				get_cpu_device(cpu),
 				&dev->res->pm_qos.pm_qos_hdls[i],
@@ -1989,8 +1984,6 @@ static int iris_hfi_core_release(void *dev)
 	if (device->res->pm_qos.latency_us &&
 		device->res->pm_qos.pm_qos_hdls) {
 		for (i = 0; i < device->res->pm_qos.silver_count; i++) {
-			if (!cpu_possible(device->res->pm_qos.silver_cores[i]))
-				continue;
 			qos_hdl = &device->res->pm_qos.pm_qos_hdls[i];
 			if ((qos_hdl != NULL) && dev_pm_qos_request_active(qos_hdl))
 				dev_pm_qos_remove_request(qos_hdl);
@@ -2853,7 +2846,7 @@ static int __response_handler(struct iris_hfi_device *device)
 	int packet_count = 0;
 	u8 *raw_packet = NULL;
 	bool requeue_pm_work = true;
-	//u32 reg_val = 0;
+
 	if (!device || device->state != IRIS_STATE_INIT)
 		return 0;
 
@@ -2868,14 +2861,7 @@ static int __response_handler(struct iris_hfi_device *device)
 		return 0;
 	}
 
-	//reg_val = __read_register(device, CVP_CPU_CS_SCIACMD);
-	//dprintk(CVP_INFO, "reg: %x, reg value %x\n",
-	//	CVP_CPU_CS_SCIACMD, reg_val);
-	//reg_val = __read_register(device, CVP_CPU_CS_SCIACMDARG0);
-	//dprintk(CVP_INFO, "reg: %x, reg value %x\n",
-	//	CVP_CPU_CS_SCIACMDARG0, reg_val);
-	//
-	if (device->intr_status & CVP_WRAPPER_INTR_MASK_A2HWD_BMSK) {
+	if (device->intr_status & CVP_FATAL_INTR_BMSK) {
 		struct cvp_hfi_sfr_struct *vsfr = (struct cvp_hfi_sfr_struct *)
 			device->sfr.align_virtual_addr;
 		struct msm_cvp_cb_info info = {
@@ -4558,7 +4544,7 @@ static void __noc_error_info_iris2(struct iris_hfi_device *device)
 	__err_log(log_required, &noc_log->err_core_errlog2_high,
 			"CVP_NOC_CORE_ERL_MAIN_ERRLOG2_HIGH", val);
 	val = __read_register(device, CVP_NOC_CORE_ERR_ERRLOG3_LOW_OFFS);
-	__err_log(log_required, &noc_log->err_core_errlog3_low, 
+	__err_log(log_required, &noc_log->err_core_errlog3_low,
 			"CORE ERRLOG3_LOW, below details", val);
 	__print_reg_details(val);
 	val = __read_register(device, CVP_NOC_CORE_ERR_ERRLOG3_HIGH_OFFS);
